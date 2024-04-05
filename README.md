@@ -1,32 +1,34 @@
-import com.atlassian.jira.component.ComponentAccessor
+import com.atlassian.bitbucket.auth.AuthenticationManager
+import com.atlassian.bitbucket.auth.AuthenticationResult
+import com.atlassian.bitbucket.auth.AuthenticationStore
+import com.atlassian.bitbucket.auth.AuthenticationToken
 
-def issueManager = ComponentAccessor.getIssueManager()
-def customFieldManager = ComponentAccessor.getCustomFieldManager()
+// Inject necessary services
+def authenticationManager = ComponentLocator.getComponent(AuthenticationManager)
+def authenticationStore = ComponentLocator.getComponent(AuthenticationStore)
 
-// Change 'Epic Link' to the appropriate field ID if your Epic linkage field is different
-def epicLinkField = customFieldManager.getCustomFieldObjectByName("Epic Link")
+// Get all users
+def users = ComponentLocator.getComponent(com.atlassian.bitbucket.user.UserService).findAll()
 
-def parentCapabilityField = customFieldManager.getCustomFieldObjectByName("Parent Capability")
-def storyPointsField = customFieldManager.getCustomFieldObjectByName("Story Points")
+// Store user information
+def userAuthInfo = []
 
-// Retrieve the current issue and its parent capability
-def currentIssue = issue
-def parentCapability = currentIssue.getCustomFieldValue(parentCapabilityField)
-
-// Calculate total completed story points in the parent capability
-def totalCompletedStoryPoints = 0
-if (parentCapability != null) {
-    def parentCapabilityIssues = issueManager.getIssueObjects(parentCapability)
-    parentCapabilityIssues.each { capabilityIssue ->
-        def epicLinkValue = capabilityIssue.getCustomFieldValue(epicLinkField)
-        if (epicLinkValue == currentIssue.key) {
-            // This issue belongs to the current Epic, add its story points to the total
-            def storyPointsValue = capabilityIssue.getCustomFieldValue(storyPointsField)
-            if (storyPointsValue != null && capabilityIssue.resolutionDate) {
-                totalCompletedStoryPoints += storyPointsValue as Integer
-            }
-        }
+// Iterate through users
+users.each { user ->
+    // Get authentication token for the user
+    AuthenticationToken token = authenticationStore.getAuthenticationToken(user.id)
+    
+    if (token) {
+        // Get authentication result using the token
+        AuthenticationResult authResult = authenticationManager.getResult(token)
+        
+        // Extract authenticated date
+        Date authenticatedDate = authResult.getAuthenticatedDate()
+        
+        // Add user information along with authenticated date to the list
+        userAuthInfo.add([username: user.name, email: user.emailAddress, authenticatedDate: authenticatedDate])
     }
 }
 
-return totalCompletedStoryPoints
+return userAuthInfo
+
