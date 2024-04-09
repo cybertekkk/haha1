@@ -1,34 +1,51 @@
-import com.atlassian.bitbucket.auth.AuthenticationManager
-import com.atlassian.bitbucket.auth.AuthenticationResult
+import com.atlassian.bitbucket.user.UserService
+import com.atlassian.bitbucket.user.ApplicationUser
 import com.atlassian.bitbucket.auth.AuthenticationStore
+import com.atlassian.bitbucket.auth.AuthenticationManager
 import com.atlassian.bitbucket.auth.AuthenticationToken
+import com.atlassian.bitbucket.auth.AuthenticationResult
+import com.atlassian.sal.api.component.ComponentLocator
 
-// Inject necessary services
+// Get necessary Bitbucket services
+def userService = ComponentLocator.getComponent(UserService)
 def authenticationManager = ComponentLocator.getComponent(AuthenticationManager)
 def authenticationStore = ComponentLocator.getComponent(AuthenticationStore)
 
-// Get all users
-def users = ComponentLocator.getComponent(com.atlassian.bitbucket.user.UserService).findAll()
-
-// Store user information
-def userAuthInfo = []
-
-// Iterate through users
-users.each { user ->
-    // Get authentication token for the user
+// Function to retrieve authentication result for a user
+def getAuthenticationResult(ApplicationUser user) {
     AuthenticationToken token = authenticationStore.getAuthenticationToken(user.id)
-    
     if (token) {
-        // Get authentication result using the token
-        AuthenticationResult authResult = authenticationManager.getResult(token)
-        
-        // Extract authenticated date
-        Date authenticatedDate = authResult.getAuthenticatedDate()
-        
-        // Add user information along with authenticated date to the list
-        userAuthInfo.add([username: user.name, email: user.emailAddress, authenticatedDate: authenticatedDate])
+        return authenticationManager.getResult(token)
     }
+    return null
 }
 
-return userAuthInfo
+// Function to format user details
+def formatUserDetails(ApplicationUser user, AuthenticationResult authResult) {
+    def userDetails = "Username: ${user.name}\n" +
+                      "Email: ${user.emailAddress}\n"
+    if (authResult) {
+        userDetails += "Authenticated Date: ${authResult.getAuthenticatedDate()}\n"
+    } else {
+        userDetails += "Not Authenticated\n"
+    }
+    return userDetails
+}
 
+// Retrieve all users
+def users = userService.findUsers(null, null, null, null)
+
+// Store user details
+def userDetailsList = []
+
+// Iterate through users and fetch details
+users.each { user ->
+    def authResult = getAuthenticationResult(user)
+    def userDetails = formatUserDetails(user, authResult)
+    userDetailsList.add(userDetails)
+}
+
+// Output user details
+userDetailsList.each { userDetails ->
+    log.info(userDetails)
+}
