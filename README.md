@@ -95,6 +95,32 @@ userDetailsList.each { userDetails ->
 
 ////////
 
+import com.atlassian.bitbucket.user.UserService
+import com.atlassian.bitbucket.user.ApplicationUser
+import com.atlassian.sal.api.component.ComponentLocator
+
+// Get necessary Bitbucket services
+def userService = ComponentLocator.getComponent(UserService)
+
+// Retrieve all users
+def allUsers = userService.findUsers(null, null, null, null).getValues()
+
+// Initialize list to store user details
+def userDetailsList = []
+
+// Iterate over all users and fetch details
+allUsers.each { user ->
+    def userDetails = userService.getUserDetails(user)
+    userDetailsList.add(userDetails)
+}
+
+// Output user details
+userDetailsList.each { userDetails ->
+    println("User ID: ${userDetails.id}")
+    println("Email: ${userDetails.emailAddress}")
+    println("Last Login Date: ${userDetails.lastAuthenticationTimestamp}")
+    println(" ")
+}
 
 
 
